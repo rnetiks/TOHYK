@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+        <HasSharedItems>true</HasSharedItems>
+        <SharedGUID>{3b3cff70-c578-4db1-a561-70dce1c0126e}</SharedGUID>
+    </PropertyGroup>
+    <PropertyGroup Label="Configuration">
+        <Import_RootNamespace>TOHYK.Shared</Import_RootNamespace>
+    </PropertyGroup>
+    <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AxisInput.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GuideRenderer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)InputHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MeshRaycaster.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MultiEqualsCommand.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TOHYK.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transformer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UIDisplay.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)UndoManager.cs" />
+
+    </ItemGroup>
+</Project>

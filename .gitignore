@@ -1,0 +1,92 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+AnyCPU/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# JetBrains Rider
+/contentModel.xml
+/projectSettingsUpdater.xml
+/modules.xml
+/workspace.xml
+/httpRequests/
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Test Results
+TestResults/
+*.trx
+
+# Logs
+*.log
+
+# Publish Output
+publish/
+Publish/
+artifacts/
+
+# Generated files
+Generated/
+generated/
+
+# Database files
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage reports
+coverage/
+coverage-report/
+*.coverage
+*.coveragexml
+
+# Local data sources
+/dataSources/
+/dataSources.local.xml
+
+# User-specific settings
+*.userprefs
+
+# Dotnet tools
+.dotnet/
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Ignore secrets
+appsettings.Development.json
+secrets.json
