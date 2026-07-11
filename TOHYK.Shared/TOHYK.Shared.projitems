@@ -14,6 +14,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)GuideRenderer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)InputHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MeshRaycaster.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MouseWrapService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MultiEqualsCommand.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TOHYK.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transformer.cs" />
