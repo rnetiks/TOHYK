@@ -10,6 +10,7 @@
     </PropertyGroup>
     <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AxisInput.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CursorService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Enums.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)GuideRenderer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)InputHandler.cs" />
@@ -21,5 +22,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)UIDisplay.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)UndoManager.cs" />
 
+    </ItemGroup>
+    <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\cursor_move.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\cursor_rotate.png" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)Resources\cursor_scale.png" />
     </ItemGroup>
 </Project>
