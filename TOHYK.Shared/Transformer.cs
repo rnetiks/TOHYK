@@ -92,7 +92,7 @@ namespace TOHYK
 
         public void ComputeFreeRotateAngles(Vector2 startMouseScreen, out float angleX, out float angleY, bool snapping)
         {
-            Vector2 currentMouse = Input.mousePosition;
+            Vector2 currentMouse = MouseWrapService.VirtualMousePosition;
             Vector2 deltaPx = currentMouse - startMouseScreen;
 
             float sensitivity = _rotateSensitivity.Value * 0.5f;
@@ -106,10 +106,83 @@ namespace TOHYK
             angleY = Mathf.Round(angleY / snap) * snap;
         }
 
+        /// <summary>
+        /// Angle for axis/plane-constrained rotation (R+X/Y/Z etc). Unlike the
+        /// old atan2-around-pivot approach, this maps the mouse's linear
+        /// travel along the on-screen tangent of the rotation axis to angle,
+        /// the same "infinite drag" philosophy used by Move. This keeps
+        /// rotation speed consistent regardless of where the pivot sits on
+        /// screen or of tracing a literal circle - dragging straight in the
+        /// tangent direction now always produces steady rotation.
+        ///
+        /// Exception: if the axis points almost straight at/away from the
+        /// camera there is no usable on-screen tangent (its projection
+        /// degenerates to a point), so we fall back to sweeping the angle
+        /// around the pivot's screen position, which is the correct "spin
+        /// the dial" gesture for that specific viewing angle.
+        /// </summary>
+        public float ComputeConstrainedRotateAngle(
+            Vector2 startMouseScreen,
+            Vector3 pivotWorld,
+            Vector3 axis,
+            bool snapping)
+        {
+            var cam = _getCamera();
+            if (cam == null)
+                return 0f;
+
+            Vector2 currentMouse = MouseWrapService.VirtualMousePosition;
+
+            Vector3 pivotScreen3 = cam.WorldToScreenPoint(pivotWorld);
+            Vector2 pivotScreen = new Vector2(pivotScreen3.x, pivotScreen3.y);
+
+            Vector3 axisNorm = axis.normalized;
+            float facing = Mathf.Abs(Vector3.Dot(axisNorm, cam.transform.forward));
+
+            float deltaAngle;
+
+            if (facing > 0.98f)
+            {
+                float startDeg = Mathf.Atan2(startMouseScreen.y - pivotScreen.y, startMouseScreen.x - pivotScreen.x) * Mathf.Rad2Deg;
+                float currentDeg = Mathf.Atan2(currentMouse.y - pivotScreen.y, currentMouse.x - pivotScreen.x) * Mathf.Rad2Deg;
+                deltaAngle = Mathf.DeltaAngle(startDeg, currentDeg);
+            }
+            else
+            {
+                Vector3 axisScreen3 = cam.WorldToScreenPoint(pivotWorld + axisNorm);
+                Vector2 axisScreenDir = new Vector2(axisScreen3.x, axisScreen3.y) - pivotScreen;
+
+                if (axisScreenDir.sqrMagnitude < 1e-6f)
+                    axisScreenDir = Vector2.right;
+                axisScreenDir.Normalize();
+
+                // Perpendicular to the axis' own screen projection = the
+                // direction the mouse should travel for a pure rotation.
+                Vector2 tangent = new Vector2(-axisScreenDir.y, axisScreenDir.x);
+
+                Vector2 deltaPx = currentMouse - startMouseScreen;
+                float travel = Vector2.Dot(deltaPx, tangent);
+
+                float sensitivity = _rotateSensitivity.Value * 0.5f;
+                deltaAngle = travel / Screen.height * 360f * sensitivity;
+            }
+
+            float sign = Vector3.Dot(axisNorm, cam.transform.forward) > 0 ? 1f : -1f;
+            deltaAngle *= sign;
+
+            if (snapping)
+            {
+                float snap = _snapAngle.Value;
+                deltaAngle = Mathf.Round(deltaAngle / snap) * snap;
+            }
+
+            return deltaAngle;
+        }
+
         public float ComputeScaleRatio(Vector3 pivotWorld, float startDist, bool snapping)
         {
             var cam = _getCamera();
-            Vector2 currentMouse = Input.mousePosition;
+            Vector2 currentMouse = MouseWrapService.VirtualMousePosition;
 
             Vector3 pivotScreen = cam.WorldToScreenPoint(pivotWorld);
             Vector2 pivotScreen2D = new Vector2(pivotScreen.x, pivotScreen.y);
@@ -246,7 +319,7 @@ namespace TOHYK
             if (cam == null)
                 return planePoint;
 
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            Ray ray = cam.ScreenPointToRay(MouseWrapService.VirtualMousePosition);
             Plane plane = new Plane(planeNormal.normalized, planePoint);
 
             if (plane.Raycast(ray, out float enter))
@@ -261,7 +334,7 @@ namespace TOHYK
             if (cam == null)
                 return axisOrigin;
 
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Ray mouseRay = cam.ScreenPointToRay(MouseWrapService.VirtualMousePosition);
             return ClosestPointOnLineToRay(axisOrigin, axisDir.normalized, mouseRay);
         }
 

@@ -121,6 +121,11 @@ namespace TOHYK
             if (!Singleton<GuideObjectManager>.IsInstance())
                 return;
 
+            // Advance the wrap-around ("infinite drag") virtual mouse position
+            // before anything this frame reads it. No-op when no transform
+            // mode is active.
+            MouseWrapService.Tick();
+
             if (_inputHandler.IsPivotCyclePressed)
             {
                 CyclePivotMode();
@@ -245,7 +250,8 @@ namespace TOHYK
             _activeTarget = GetActiveTarget();
             _pivotWorld = GetPivot(_targets, _activeTarget, CfgPivotMode.Value);
 
-            _startMouseScreen = Input.mousePosition;
+            MouseWrapService.BeginTracking();
+            _startMouseScreen = MouseWrapService.VirtualMousePosition;
             _startMousePlane = GetMouseWorldOnPlane(_pivotWorld, GetCameraForward());
             _startDist = 0f;
 
@@ -298,6 +304,7 @@ namespace TOHYK
             _mode = TransformMode.None;
             _rotationAxis = Vector3.zero;
             _meshRaycaster.Clear();
+            MouseWrapService.EndTracking();
             SetGuideObjectWorkplaceActive(true);
         }
 
@@ -335,6 +342,7 @@ namespace TOHYK
             _mode = TransformMode.None;
             _rotationAxis = Vector3.zero;
             _meshRaycaster.Clear();
+            MouseWrapService.EndTracking();
             SetGuideObjectWorkplaceActive(true);
         }
 
@@ -438,7 +446,7 @@ namespace TOHYK
         
         private void RefreshMouseReferences()
         {
-            _startMouseScreen = Input.mousePosition;
+            _startMouseScreen = MouseWrapService.VirtualMousePosition;
             _startMousePlane = GetMouseWorldOnPlane(_pivotWorld, GetPlaneNormal());
 
             if (_rotationAxis == Vector3.zero && _space == ConstraintSpace.Local && _constraint != AxisConstraint.Free)
@@ -521,7 +529,7 @@ namespace TOHYK
             if (cam == null)
                 return;
 
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            Ray ray = cam.ScreenPointToRay(MouseWrapService.VirtualMousePosition);
 
             if (_meshRaycaster.Raycast(ray, 100f, _targets, out Vector3 hitPoint, out Vector3 hitNormal))
             {
@@ -591,32 +599,13 @@ namespace TOHYK
 
         private void UpdateRotateConstrained()
         {
-            var cam = GetCamera();
-            Vector3 pivotScreen = cam.WorldToScreenPoint(_pivotWorld);
-            Vector2 currentMouse = Input.mousePosition;
-
-            float currentAngleRad = Mathf.Atan2(currentMouse.y - pivotScreen.y, currentMouse.x - pivotScreen.x);
-            float deltaAngleRad = currentAngleRad -
-                                  Mathf.Atan2(_startMouseScreen.y - pivotScreen.y, _startMouseScreen.x - pivotScreen.x);
-
-            while (deltaAngleRad > Mathf.PI) deltaAngleRad -= Mathf.PI * 2f;
-            while (deltaAngleRad < -Mathf.PI) deltaAngleRad += Mathf.PI * 2f;
-
-            float deltaAngle = deltaAngleRad * Mathf.Rad2Deg;
-
             Vector3 axis = _rotationAxis != Vector3.zero ? _rotationAxis : GetConstraintAxisDir();
             if (_constraint == AxisConstraint.PlaneXY || _constraint == AxisConstraint.PlaneXZ ||
                 _constraint == AxisConstraint.PlaneYZ)
                 axis = _rotationAxis != Vector3.zero ? _rotationAxis : GetPlaneNormal();
 
-            float sign = Vector3.Dot(axis, cam.transform.forward) > 0 ? 1f : -1f;
-            deltaAngle *= sign;
-
-            if (_snapping)
-            {
-                float snap = _cfgSnapAngle.Value;
-                deltaAngle = Mathf.Round(deltaAngle / snap) * snap;
-            }
+            float deltaAngle = transformer.ComputeConstrainedRotateAngle(
+                _startMouseScreen, _pivotWorld, axis, _snapping);
 
             Quaternion rotation = Quaternion.AngleAxis(deltaAngle, axis);
 
@@ -796,7 +785,7 @@ namespace TOHYK
             if (cam == null)
                 return planePoint;
 
-            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            Ray ray = cam.ScreenPointToRay(MouseWrapService.VirtualMousePosition);
             Plane plane = new Plane(planeNormal.normalized, planePoint);
 
             if (plane.Raycast(ray, out float enter))
@@ -811,7 +800,7 @@ namespace TOHYK
             if (cam == null)
                 return axisOrigin;
 
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Ray mouseRay = cam.ScreenPointToRay(MouseWrapService.VirtualMousePosition);
             return ClosestPointOnLineToRay(axisOrigin, axisDir.normalized, mouseRay);
         }
 
