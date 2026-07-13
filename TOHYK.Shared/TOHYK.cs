@@ -615,13 +615,27 @@ namespace TOHYK
 
         private void UpdateRotateConstrained()
         {
+            var cam = GetCamera();
+            Vector3 pivotScreen = cam.WorldToScreenPoint(_pivotWorld);
+            var virtualMousePosition = MouseWrapService.VirtualMousePosition;
+            Vector2 currentMouse = virtualMousePosition;
+            
+            float currentAngleRad = Mathf.Atan2(virtualMousePosition.y - pivotScreen.y, virtualMousePosition.x - pivotScreen.x);
+            float deltaAngleRad = currentAngleRad - Mathf.Atan2(_startMouseScreen.y - pivotScreen.y, _startMouseScreen.x - pivotScreen.x);
+            float deltaAngle = deltaAngleRad * Mathf.Rad2Deg;
             Vector3 axis = _rotationAxis != Vector3.zero ? _rotationAxis : GetConstraintAxisDir();
             if (_constraint == AxisConstraint.PlaneXY || _constraint == AxisConstraint.PlaneXZ ||
                 _constraint == AxisConstraint.PlaneYZ)
                 axis = _rotationAxis != Vector3.zero ? _rotationAxis : GetPlaneNormal();
 
-            float deltaAngle = transformer.ComputeConstrainedRotateAngle(
-                _startMouseScreen, _pivotWorld, axis, _snapping);
+            float sign = Vector3.Dot(axis, cam.transform.forward) > 0 ? 1f : -1f;
+            deltaAngle *= sign;
+
+            if (_snapping)
+            {
+                float snap = _cfgSnapAngle.Value;
+                deltaAngle = Mathf.Round(deltaAngle / snap) * snap;
+            }
 
             Quaternion rotation = Quaternion.AngleAxis(deltaAngle, axis);
 

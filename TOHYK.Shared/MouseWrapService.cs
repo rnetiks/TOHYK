@@ -5,25 +5,6 @@ using UnityEngine;
 
 namespace TOHYK
 {
-    /// <summary>
-    /// Emulates Blender's "infinite" mouse drag behaviour for the G/R/S (and
-    /// combined, e.g. R+Z, R+Shift+Z) transform modes.
-    ///
-    /// Two things happen while a transform mode is active:
-    ///   1. The OS cursor is confined to the game window (via Unity's
-    ///      Cursor.lockState = Confined) so it can never wander onto a
-    ///      second monitor.
-    ///   2. We track a "virtual" mouse position that is NOT clamped - it
-    ///      keeps accumulating movement forever, in any direction. When the
-    ///      real cursor gets within a small margin of the window edge, we
-    ///      warp the OS cursor to the opposite edge (via SetCursorPos) and
-    ///      immediately re-sync our delta baseline, so the jump itself is
-    ///      never seen by anything reading the virtual position.
-    ///
-    /// All transform math (move/rotate/scale, including axis/plane constrained
-    /// variants) should read VirtualMousePosition instead of Input.mousePosition
-    /// while a transform mode is active.
-    /// </summary>
     public static class MouseWrapService
     {
         [DllImport("user32.dll")]
