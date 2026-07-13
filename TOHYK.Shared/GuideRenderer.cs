@@ -133,6 +133,61 @@ namespace TOHYK
             }
         }
 
+        /// <summary>
+        /// Draws a dashed line, in screen space, from the pivot to the given
+        /// mouse position. Pass MouseWrapService.VirtualMousePosition (not the
+        /// raw/wrapped cursor position) as mouseScreen: since the virtual
+        /// position never jumps on an edge-wrap, the line naturally keeps
+        /// travelling straight past the screen edge instead of snapping back
+        /// to follow the cursor - matching Blender's behaviour, where the
+        /// dashed guide is independent from where the OS pointer visually is.
+        /// </summary>
+        public void RenderCursorGuideLine(Camera cam, Vector3 pivotWorld, Vector2 mouseScreen, Color color)
+        {
+            if (_glMat == null || cam == null)
+                return;
+
+            Vector3 pivotScreen3 = cam.WorldToScreenPoint(pivotWorld);
+            if (pivotScreen3.z < 0f)
+                return; // pivot is behind the camera, nothing sane to draw
+
+            Vector2 pivotScreen = new Vector2(pivotScreen3.x, pivotScreen3.y);
+
+            _glMat.SetPass(0);
+
+            GL.PushMatrix();
+            GL.LoadPixelMatrix();
+
+            DrawDashedLine2D(pivotScreen, mouseScreen, color, 8f, 6f);
+
+            GL.PopMatrix();
+        }
+
+        private static void DrawDashedLine2D(Vector2 from, Vector2 to, Color color, float dashLength, float gapLength)
+        {
+            Vector2 diff = to - from;
+            float totalLength = diff.magnitude;
+            if (totalLength < 0.001f)
+                return;
+
+            Vector2 dir = diff / totalLength;
+            float step = dashLength + gapLength;
+
+            GL.Begin(GL.LINES);
+            GL.Color(color);
+
+            float travelled = 0f;
+            while (travelled < totalLength)
+            {
+                float dashEnd = Mathf.Min(travelled + dashLength, totalLength);
+                GL.Vertex(from + dir * travelled);
+                GL.Vertex(from + dir * dashEnd);
+                travelled += step;
+            }
+
+            GL.End();
+        }
+
         public Vector3 GetConstraintAxisDir(AxisConstraint constraint, ConstraintSpace space, GuideObject activeTarget)
         {
             Vector3 dir;

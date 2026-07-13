@@ -69,6 +69,19 @@ namespace TOHYK
                 "When surface-snapping, align the object's up direction to the hit normal.");
             InvertYZ = Config.Bind("General", "Switch Y/Z", false, "Switch Y and Z buttons");
 
+            var cfgCursorSize = Config.Bind("Cursor", "Cursor Size", 35f,
+                "On-screen size (in pixels) of the Move/Rotate/Scale cursor icons.");
+            var cfgCursorAntialiasing = Config.Bind("Cursor", "Cursor Antialiasing", true,
+                "Smooth (bilinear-filtered) cursor icons when enabled, hard/pixelated (point-filtered) when disabled.");
+
+            CursorService.IconDisplaySize = cfgCursorSize.Value;
+            CursorService.SetAntialiasing(cfgCursorAntialiasing.Value);
+
+            cfgCursorSize.SettingChanged += (sender, args) =>
+                CursorService.IconDisplaySize = cfgCursorSize.Value;
+            cfgCursorAntialiasing.SettingChanged += (sender, args) =>
+                CursorService.SetAntialiasing(cfgCursorAntialiasing.Value);
+
             var snapDistance = Config.Bind("Snapping", "Snap Distance", 0.1f, "Grid snap increment for position.");
             var snapAngle = Config.Bind("Snapping", "Snap Angle", 5f, "Grid snap increment for rotation in degrees.");
             var snapScale = Config.Bind("Snapping", "Snap Scale", 0.1f, "Grid snap increment for scale.");
@@ -270,6 +283,7 @@ namespace TOHYK
             }
 
             _mode = newMode.Value;
+            CursorService.SetForMode(_mode);
             _constraint = newMode == TransformMode.Rotate ? AxisConstraint.CameraForward : AxisConstraint.Free;
             _space = ConstraintSpace.Global;
             _snapping = false;
@@ -302,6 +316,7 @@ namespace TOHYK
             }
 
             _mode = TransformMode.None;
+            CursorService.Reset();
             _rotationAxis = Vector3.zero;
             _meshRaycaster.Clear();
             MouseWrapService.EndTracking();
@@ -340,6 +355,7 @@ namespace TOHYK
             }
 
             _mode = TransformMode.None;
+            CursorService.Reset();
             _rotationAxis = Vector3.zero;
             _meshRaycaster.Clear();
             MouseWrapService.EndTracking();
@@ -846,6 +862,17 @@ namespace TOHYK
 
             _guideRenderer.Render(_targets, _pivotWorld, _constraint, _space, _activeTarget, CfgPivotMode.Value,
                 cachedAxis, cachedNormal);
+
+            // Dashed pivot-to-cursor guide, Blender-style: uses the unbounded
+            // virtual mouse position, so it keeps travelling straight past the
+            // screen edge instead of snapping back when the cursor wraps.
+            // Skipped in Move mode (G) - doesn't make sense there since the
+            // pivot itself moves with the object.
+            if (_mode != TransformMode.Move)
+            {
+                _guideRenderer.RenderCursorGuideLine(cam, _pivotWorld, MouseWrapService.VirtualMousePosition,
+                    new Color(1f, 1f, 1f, 0.6f));
+            }
         }
 
         private void OnGUI()
@@ -854,6 +881,50 @@ namespace TOHYK
                 return;
 
             _uiDisplay.Render(_mode, _constraint, _space, _snapping, _cfgSurfaceSnap.Value);
+
+            DrawCustomCursor();
+        }
+
+        /// <summary>
+        /// Draws our own cursor icon (the OS cursor is hidden while a mode
+        /// is active - see CursorService.SetForMode). Anchored at the real,
+        /// screen-clamped mouse position (Input.mousePosition) so it always
+        /// sits where the pointer visually is, even if the wrap-around
+        /// "infinite drag" logic has the virtual position far outside the
+        /// screen bounds. The rotation angle, however, is computed from the
+        /// pivot to the unbounded virtual mouse position - the exact same
+        /// angle the dashed guide line is drawn at - so the icon always
+        /// points the same direction as that line, like the short hand of
+        /// a clock locked to the long hand.
+        /// </summary>
+        private void DrawCustomCursor()
+        {
+            Vector2 mouseRaw = (Vector2)Input.mousePosition;
+            Vector2 mouseGui = new Vector2(mouseRaw.x, Screen.height - mouseRaw.y);
+
+            float angleDeg = 0f;
+
+            if (_mode == TransformMode.Rotate || _mode == TransformMode.Scale)
+            {
+                Camera cam = GetCamera();
+                if (cam != null)
+                {
+                    Vector3 pivotScreen3 = cam.WorldToScreenPoint(_pivotWorld);
+                    if (pivotScreen3.z >= 0f)
+                    {
+                        Vector2 pivotGui = new Vector2(pivotScreen3.x, Screen.height - pivotScreen3.y);
+                        Vector2 mouseVirtualGui = new Vector2(
+                            MouseWrapService.VirtualMousePosition.x,
+                            Screen.height - MouseWrapService.VirtualMousePosition.y);
+
+                        Vector2 dir = mouseVirtualGui - pivotGui;
+                        if (dir.sqrMagnitude > 0.0001f)
+                            angleDeg = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                    }
+                }
+            }
+
+            CursorService.Draw(_mode, mouseGui, angleDeg);
         }
     }
 }
