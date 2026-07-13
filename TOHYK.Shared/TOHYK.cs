@@ -18,7 +18,7 @@ namespace TOHYK
         // ReSharper disable MemberCanBePrivate.Global
         public const string Guid = "org.fox.TOHYK";
         public const string PluginName = "TOHYK";
-        public const string Version = "1.2.2";
+        public const string Version = "1.3.0";
         // ReSharper restore MemberCanBePrivate.Global
 
         private InputHandler _inputHandler;
