@@ -26,11 +26,8 @@ namespace TOHYK
             public int Y;
         }
 
-        // How close (in pixels) to the window edge before we trigger a warp.
         private const float EdgeMargin = 2f;
 
-        // Where the cursor lands on the opposite side after a warp (small
-        // inset so we don't immediately re-trigger the same check).
         private const float WarpInset = 4f;
 
         private static IntPtr _hwnd = IntPtr.Zero;
@@ -39,15 +36,8 @@ namespace TOHYK
         private static Vector2 _virtualMouse;
         private static CursorLockMode _previousLockState;
 
-        /// <summary>
-        /// The unbounded mouse position to use for all transform math while a
-        /// mode is active. Falls back to the raw Input.mousePosition when
-        /// tracking hasn't been started (shouldn't normally be read in that case).
-        /// </summary>
         public static Vector2 VirtualMousePosition => _tracking ? _virtualMouse : (Vector2)Input.mousePosition;
 
-        /// <summary>Call when entering a transform mode (Move/Rotate/Scale) or
-        /// whenever mouse references are reset (RefreshMouseReferences).</summary>
         public static void BeginTracking()
         {
             bool wasTracking = _tracking;
@@ -61,14 +51,10 @@ namespace TOHYK
             if (!wasTracking)
             {
                 _previousLockState = Cursor.lockState;
-                // Physically confine the OS cursor to the game window so it
-                // can never wander onto a second monitor. This does NOT hide
-                // the cursor (unlike CursorLockMode.Locked).
                 Cursor.lockState = CursorLockMode.Confined;
             }
         }
 
-        /// <summary>Call when leaving a transform mode (Confirm/Cancel).</summary>
         public static void EndTracking()
         {
             if (_tracking)
@@ -77,7 +63,6 @@ namespace TOHYK
             _tracking = false;
         }
 
-        /// <summary>Call once per frame, before any code reads VirtualMousePosition.</summary>
         public static void Tick()
         {
             if (!_tracking)
@@ -93,9 +78,6 @@ namespace TOHYK
 
         private static void ResolveWindowHandle()
         {
-            // Try to (re-)resolve every time tracking begins - cheap, and
-            // means a failed first attempt (e.g. called too early) doesn't
-            // permanently disable the warp for the rest of the session.
             try
             {
                 IntPtr candidate = Process.GetCurrentProcess().MainWindowHandle;
@@ -107,12 +89,8 @@ namespace TOHYK
             }
             catch
             {
-                // ignore, fall through to foreground-window fallback
             }
 
-            // Fallback: MainWindowHandle can come back zero in some BepInEx/
-            // IL2CPP setups. If the currently focused window belongs to this
-            // process, use that instead.
             try
             {
                 IntPtr fg = GetForegroundWindow();
@@ -125,7 +103,6 @@ namespace TOHYK
             }
             catch
             {
-                // leave _hwnd as-is
             }
         }
 
@@ -170,15 +147,12 @@ namespace TOHYK
             if (!ClientToScreen(_hwnd, ref origin))
                 return;
 
-            // Unity's mouse Y is bottom-up; Win32 screen coords are top-down.
             int screenX = origin.X + Mathf.RoundToInt(newX);
             int screenY = origin.Y + (int)h - Mathf.RoundToInt(newY);
 
             if (!SetCursorPos(screenX, screenY))
                 return;
 
-            // Re-sync the delta baseline to the warped position so the jump
-            // itself never shows up as movement next frame.
             _lastRaw = new Vector2(newX, newY);
         }
     }

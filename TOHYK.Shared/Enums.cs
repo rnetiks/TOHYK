@@ -5,7 +5,9 @@ namespace TOHYK
         None,
         Move,
         Rotate,
-        Scale
+        Scale,
+
+        Mirror
     }
 
     public enum AxisConstraint
@@ -31,5 +33,9 @@ namespace TOHYK
         MedianPoint,
         ActiveElement,
         IndividualOrigins,
+
+        BoundingBoxCenter,
+
+        AccessoryParent,
     }
 }

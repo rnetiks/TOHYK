@@ -32,31 +32,44 @@ namespace TOHYK
         }
 
         public Vector3 ComputeMoveDelta(
-            Vector3 startMousePlane,
-            Vector3 startMouseAxis,
+            Vector3 refMousePlane,
+            Vector3 refMouseAxis,
             AxisConstraint constraint,
             ConstraintSpace space,
-            GuideObject activeTarget,
-            Vector3 pivotWorld)
+            ITransformTarget activeTarget,
+            Vector3 cachedAxisDir,
+            Vector3 pivotWorld,
+            Vector2 prevMouseScreen,
+            bool precision = false)
         {
+            if (MouseWrapService.VirtualMousePosition == prevMouseScreen)
+                return Vector3.zero;
+
+            Vector3 delta;
             switch (constraint)
             {
                 case AxisConstraint.Free:
-                    return ComputeFreeMoveDelta(startMousePlane, pivotWorld);
+                    delta = ComputeFreeMoveDelta(refMousePlane, pivotWorld);
+                    break;
 
                 case AxisConstraint.AxisX:
                 case AxisConstraint.AxisY:
                 case AxisConstraint.AxisZ:
-                    return ComputeAxisMoveDelta(startMouseAxis, pivotWorld, constraint, space, activeTarget);
+                    delta = ComputeAxisMoveDelta(refMouseAxis, pivotWorld, cachedAxisDir);
+                    break;
 
                 case AxisConstraint.PlaneXY:
                 case AxisConstraint.PlaneXZ:
                 case AxisConstraint.PlaneYZ:
-                    return ComputePlaneMoveDelta(startMousePlane, pivotWorld, constraint, space, activeTarget);
+                    delta = ComputePlaneMoveDelta(refMousePlane, pivotWorld, constraint, space, activeTarget);
+                    break;
 
                 default:
                     return Vector3.zero;
             }
+
+            if (precision) delta *= PrecisionFactor;
+            return delta;
         }
 
         private Vector3 ComputeFreeMoveDelta(Vector3 startMousePlane, Vector3 pivotWorld)
@@ -69,11 +82,8 @@ namespace TOHYK
         private Vector3 ComputeAxisMoveDelta(
             Vector3 startMouseAxis,
             Vector3 pivotWorld,
-            AxisConstraint constraint,
-            ConstraintSpace space,
-            GuideObject activeTarget)
+            Vector3 axisDir)
         {
-            Vector3 axisDir = GetConstraintAxisDir(constraint, space, activeTarget);
             Vector3 currentProj = GetMouseOnAxis(pivotWorld, axisDir);
             return currentProj - startMouseAxis;
         }
@@ -83,56 +93,107 @@ namespace TOHYK
             Vector3 pivotWorld,
             AxisConstraint constraint,
             ConstraintSpace space,
-            GuideObject activeTarget)
+            ITransformTarget activeTarget)
         {
             Vector3 normal = GetPlaneNormal(constraint, space, activeTarget);
             Vector3 current = GetMouseWorldOnPlane(pivotWorld, normal);
             return current - startMousePlane;
         }
 
-        public void ComputeFreeRotateAngles(Vector2 startMouseScreen, out float angleX, out float angleY, bool snapping)
+        private const float PrecisionFactor = 0.15f;
+
+        internal const float FineSnapDivisor = 100f;
+
+        public void ComputeFreeRotateAngles(Vector2 startMouseScreen, out float angleX, out float angleY, bool snapping, bool precision = false, bool fineSnap = false)
         {
             Vector2 currentMouse = MouseWrapService.VirtualMousePosition;
             Vector2 deltaPx = currentMouse - startMouseScreen;
 
             float sensitivity = _rotateSensitivity.Value * 0.5f;
+            if (precision) sensitivity *= PrecisionFactor;
+
             angleX = deltaPx.y / Screen.height * 360f * sensitivity;
             angleY = -deltaPx.x / Screen.width * 360f * sensitivity;
 
             if (!snapping) return;
-            
+
             float snap = _snapAngle.Value;
+            if (fineSnap) snap /= FineSnapDivisor;
             angleX = Mathf.Round(angleX / snap) * snap;
             angleY = Mathf.Round(angleY / snap) * snap;
         }
 
-        public float ComputeScaleRatio(Vector3 pivotWorld, float startDist, bool snapping)
+        public float ComputeConstrainedRotateAngleDelta(
+            Vector2 prevMouseScreen,
+            Vector3 pivotWorld,
+            Vector3 axis,
+            bool precision)
+        {
+            var cam = _getCamera();
+            if (cam == null)
+                return 0f;
+
+            Vector2 currentMouse = MouseWrapService.VirtualMousePosition;
+            if (currentMouse == prevMouseScreen)
+                return 0f;
+
+            Vector3 pivotScreen3 = cam.WorldToScreenPoint(pivotWorld);
+            Vector2 pivotScreen = new Vector2(pivotScreen3.x, pivotScreen3.y);
+
+            Vector3 axisNorm = axis.normalized;
+
+            float prevDeg = Mathf.Atan2(prevMouseScreen.y - pivotScreen.y, prevMouseScreen.x - pivotScreen.x) * Mathf.Rad2Deg;
+            float currentDeg = Mathf.Atan2(currentMouse.y - pivotScreen.y, currentMouse.x - pivotScreen.x) * Mathf.Rad2Deg;
+            float deltaAngle = Mathf.DeltaAngle(prevDeg, currentDeg);
+
+            float sign = Vector3.Dot(axisNorm, cam.transform.forward) > 0 ? 1f : -1f;
+            deltaAngle *= sign;
+
+            if (precision) deltaAngle *= PrecisionFactor;
+
+            return deltaAngle;
+        }
+
+        public float ComputeScaleFrameRatio(Vector3 pivotWorld, float prevDist, Vector2 prevMouseScreen, bool precision = false)
         {
             var cam = _getCamera();
             Vector2 currentMouse = MouseWrapService.VirtualMousePosition;
+            if (currentMouse == prevMouseScreen)
+                return 1f;
 
             Vector3 pivotScreen = cam.WorldToScreenPoint(pivotWorld);
             Vector2 pivotScreen2D = new Vector2(pivotScreen.x, pivotScreen.y);
             float currentDist = Vector2.Distance(currentMouse, pivotScreen2D);
-            float ratio = currentDist / startDist;
 
-            if (snapping)
-            {
-                float snap = _snapScale.Value;
-                ratio = Mathf.Round(ratio / snap) * snap;
-                if (ratio < snap)
-                    ratio = snap;
-            }
+            if (prevDist < 1f) prevDist = 1f;
+            float frameRatio = currentDist / prevDist;
+
+            if (precision) frameRatio = 1f + (frameRatio - 1f) * PrecisionFactor;
+
+            return frameRatio;
+        }
+
+        public float ApplyScaleSnapping(float ratio, bool snapping, bool fineSnap = false)
+        {
+            if (!snapping)
+                return ratio;
+
+            float snap = _snapScale.Value;
+            if (fineSnap) snap /= FineSnapDivisor;
+            ratio = Mathf.Round(ratio / snap) * snap;
+            if (ratio < snap)
+                ratio = snap;
 
             return ratio;
         }
 
-        public Vector3 ApplyMoveSnapping(Vector3 delta, AxisConstraint constraint, bool snapping)
+        public Vector3 ApplyMoveSnapping(Vector3 delta, AxisConstraint constraint, bool snapping, bool fineSnap = false)
         {
             if (!snapping)
                 return delta;
 
             float snap = _snapDistance.Value;
+            if (fineSnap) snap /= FineSnapDivisor;
 
             if (constraint == AxisConstraint.AxisX || constraint == AxisConstraint.AxisY || constraint == AxisConstraint.AxisZ)
             {
@@ -151,7 +212,7 @@ namespace TOHYK
                 Mathf.Round(delta.z / snap) * snap);
         }
 
-        public Vector3 ApplyConstraintMask(Vector3 delta, AxisConstraint constraint, ConstraintSpace space, GuideObject activeTarget)
+        public Vector3 ApplyConstraintMask(Vector3 delta, AxisConstraint constraint, ConstraintSpace space, ITransformTarget activeTarget)
         {
             if (constraint == AxisConstraint.Free)
                 return delta;
@@ -190,7 +251,7 @@ namespace TOHYK
             return delta;
         }
 
-        public Vector3 GetConstraintAxisDir(AxisConstraint constraint, ConstraintSpace space, GuideObject activeTarget)
+        public Vector3 GetConstraintAxisDir(AxisConstraint constraint, ConstraintSpace space, ITransformTarget activeTarget)
         {
             Vector3 dir;
             switch (constraint)
@@ -215,7 +276,7 @@ namespace TOHYK
             return dir.normalized;
         }
 
-        public Vector3 GetPlaneNormal(AxisConstraint constraint, ConstraintSpace space, GuideObject activeTarget)
+        public Vector3 GetPlaneNormal(AxisConstraint constraint, ConstraintSpace space, ITransformTarget activeTarget)
         {
             Vector3 normal;
             switch (constraint)
@@ -263,6 +324,34 @@ namespace TOHYK
 
             Ray mouseRay = cam.ScreenPointToRay(MouseWrapService.VirtualMousePosition);
             return ClosestPointOnLineToRay(axisOrigin, axisDir.normalized, mouseRay);
+        }
+
+        public static void MirrorAcrossPlane(
+            Vector3 worldPos,
+            Quaternion worldRot,
+            Vector3 worldScale,
+            Vector3 pivotWorld,
+            Vector3 planeNormalWorld,
+            out Vector3 newWorldPos,
+            out Quaternion newWorldRot,
+            out Vector3 newWorldScale)
+        {
+            Vector3 n = planeNormalWorld.normalized;
+
+            newWorldPos = worldPos - 2f * Vector3.Dot(worldPos - pivotWorld, n) * n;
+
+            Vector3 fwd = worldRot * Vector3.forward;
+            Vector3 up = worldRot * Vector3.up;
+
+            Vector3 rFwd = fwd - 2f * Vector3.Dot(fwd, n) * n;
+            Vector3 rUp = up - 2f * Vector3.Dot(up, n) * n;
+
+            newWorldRot = Quaternion.LookRotation(rFwd, rUp);
+
+            newWorldScale = new Vector3(
+                Mathf.Abs(worldScale.x),
+                Mathf.Abs(worldScale.y),
+                Mathf.Abs(worldScale.z));
         }
 
         private static Vector3 ClosestPointOnLineToRay(Vector3 lineOrigin, Vector3 lineDir, Ray ray)

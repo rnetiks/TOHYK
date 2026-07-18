@@ -1,3 +1,4 @@
+using KKAPI.Utilities;
 using UnityEngine;
 
 namespace TOHYK
@@ -9,19 +10,13 @@ namespace TOHYK
         private const string ScaleFileName = "cursor_scale.png";
 
         private static float _iconDisplaySize = 35f;
-        
-        /// <summary>
-        /// Size of the icon
-        /// </summary>
+
         public static float IconDisplaySize
         {
             get => _iconDisplaySize;
             set => _iconDisplaySize = Mathf.Max(1f, value);
         }
-        
-        /// <summary>
-        /// If the service should use bilinear anti-alias
-        /// </summary>
+
         private static bool _antialiasing = true;
 
         private static byte[] _moveBytes;
@@ -35,7 +30,7 @@ namespace TOHYK
         private static int _builtForSize = -1;
 
         private static TransformMode _mode = TransformMode.None;
-        
+
         public static void SetAntialiasing(bool enabled)
         {
             _antialiasing = enabled;
@@ -46,9 +41,6 @@ namespace TOHYK
             if (_scaleCursor != null) _scaleCursor.filterMode = mode;
         }
 
-        /// <summary>Call when entering/leaving a transform mode (Move/Rotate/
-        /// Scale/None). Hides the real OS cursor for any active mode - our
-        /// own icon is what gets drawn instead, via Draw() from OnGUI.</summary>
         public static void SetForMode(TransformMode mode)
         {
             EnsureBytesLoaded();
@@ -63,16 +55,6 @@ namespace TOHYK
             Cursor.visible = true;
         }
 
-        /// <summary>
-        /// Renders the appropriate cursor icon on the GUI at a given position
-        /// and optionally applies a rotation for certain modes. This method
-        /// manages cursor appearance dynamically based on the current
-        /// transformation mode (Move, Rotate, Scale) and draws the icon at
-        /// the specified GUI coordinates.
-        /// </summary>
-        /// <param name="mode">The current transformation mode defining which cursor texture to display (Move, Rotate, Scale, or None).</param>
-        /// <param name="mouseGuiPos">The position on the screen in GUI coordinates where the cursor will be rendered.</param>
-        /// <param name="angleDeg">The angle in degrees to rotate the cursor texture for Rotate or Scale modes. Ignored for other modes.</param>
         public static void Draw(TransformMode mode, Vector2 mouseGuiPos, float angleDeg)
         {
             if (mode == TransformMode.None)
@@ -121,19 +103,11 @@ namespace TOHYK
 
             _bytesLoaded = true;
 
-            _moveBytes = KKAPI.Utilities.ResourceUtils.GetEmbeddedResource(MoveFileName);
-            _rotateBytes = KKAPI.Utilities.ResourceUtils.GetEmbeddedResource(RotateFileName);
-            _scaleBytes = KKAPI.Utilities.ResourceUtils.GetEmbeddedResource(ScaleFileName);
+            _moveBytes = ResourceUtils.GetEmbeddedResource(MoveFileName, null);
+            _rotateBytes = ResourceUtils.GetEmbeddedResource(RotateFileName, null);
+            _scaleBytes = ResourceUtils.GetEmbeddedResource(ScaleFileName, null);
         }
 
-        /// <summary>
-        /// Ensures that the cursor textures are built at the correct size
-        /// based on the current IconDisplaySize. Rebuilds the textures with appropriate
-        /// filtering when the size has changed since the last build. Destroys the
-        /// previous textures to avoid memory leaks and rebuilds them as scaled-down
-        /// versions of the source images. This method is critical for maintaining
-        /// smooth visual quality when resizing the cursor icons.
-        /// </summary>
         private static void EnsureTexturesBuilt()
         {
             int targetSize = Mathf.Max(1, Mathf.RoundToInt(IconDisplaySize));
@@ -143,7 +117,7 @@ namespace TOHYK
             EnsureBytesLoaded();
 
             FilterMode filterMode = _antialiasing ? FilterMode.Bilinear : FilterMode.Point;
-            
+
             DestroyIfNotNull(ref _moveCursor);
             DestroyIfNotNull(ref _rotateCursor);
             DestroyIfNotNull(ref _scaleCursor);
@@ -170,7 +144,7 @@ namespace TOHYK
                 return null;
 
             var srcTex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            srcTex.LoadImage(pngBytes);
+            srcTex.LoadImage(pngBytes); 
 
             Color32[] srcPixels = srcTex.GetPixels32();
             int srcW = srcTex.width;
@@ -187,14 +161,6 @@ namespace TOHYK
             return tex;
         }
 
-        /// <summary>
-        /// Box-filter resize (handles both down- and up-scaling). Uses
-        /// premultiplied-alpha averaging so fully-transparent (alpha=0)
-        /// source pixels - which are black in the PNG - don't drag the
-        /// averaged color of edge pixels toward black. Without this, edges
-        /// get a dark/grey fringe once shrunk, which is exactly the kind of
-        /// "dirty" antialiasing we're trying to avoid.
-        /// </summary>
         private static Color32[] BoxDownsample(Color32[] src, int srcW, int srcH, int dstW, int dstH)
         {
             var dst = new Color32[dstW * dstH];
@@ -221,7 +187,6 @@ namespace TOHYK
                         for (int sx = sx0; sx <= sx1; sx++)
                         {
                             Color32 c = src[sy * srcW + sx];
-                            // Premultiply alpha
                             rSum += c.r * c.a;
                             gSum += c.g * c.a;
                             bSum += c.b * c.a;

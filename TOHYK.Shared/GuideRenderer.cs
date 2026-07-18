@@ -13,11 +13,11 @@ namespace TOHYK
             _glMat = glMat;
         }
 
-        public void Render(Dictionary<int, GuideObject> targets,
+        public void Render(Dictionary<int, ITransformTarget> targets,
             Vector3 pivotWorld,
             AxisConstraint constraint,
             ConstraintSpace space,
-            GuideObject activeTarget,
+            ITransformTarget activeTarget,
             PivotMode pivotMode,
             Vector3? cachedAxis = null,
             Vector3? cachedNormal = null)
@@ -59,7 +59,7 @@ namespace TOHYK
             GL.End();
         }
 
-        public void DrawConstraintVisual(AxisConstraint constraint, ConstraintSpace space, GuideObject activeTarget, Vector3 pivotWorld, Vector3? cachedAxis = null, Vector3? cachedNormal = null)
+        public void DrawConstraintVisual(AxisConstraint constraint, ConstraintSpace space, ITransformTarget activeTarget, Vector3 pivotWorld, Vector3? cachedAxis = null, Vector3? cachedNormal = null)
         {
             float lineLength = 1000f;
 
@@ -133,15 +133,6 @@ namespace TOHYK
             }
         }
 
-        /// <summary>
-        /// Draws a dashed line, in screen space, from the pivot to the given
-        /// mouse position. Pass MouseWrapService.VirtualMousePosition (not the
-        /// raw/wrapped cursor position) as mouseScreen: since the virtual
-        /// position never jumps on an edge-wrap, the line naturally keeps
-        /// travelling straight past the screen edge instead of snapping back
-        /// to follow the cursor - matching Blender's behaviour, where the
-        /// dashed guide is independent from where the OS pointer visually is.
-        /// </summary>
         public void RenderCursorGuideLine(Camera cam, Vector3 pivotWorld, Vector2 mouseScreen, Color color)
         {
             if (_glMat == null || cam == null)
@@ -149,7 +140,7 @@ namespace TOHYK
 
             Vector3 pivotScreen3 = cam.WorldToScreenPoint(pivotWorld);
             if (pivotScreen3.z < 0f)
-                return; // pivot is behind the camera, nothing sane to draw
+                return; 
 
             Vector2 pivotScreen = new Vector2(pivotScreen3.x, pivotScreen3.y);
 
@@ -188,7 +179,7 @@ namespace TOHYK
             GL.End();
         }
 
-        public Vector3 GetConstraintAxisDir(AxisConstraint constraint, ConstraintSpace space, GuideObject activeTarget)
+        public Vector3 GetConstraintAxisDir(AxisConstraint constraint, ConstraintSpace space, ITransformTarget activeTarget)
         {
             Vector3 dir;
             switch (constraint)
@@ -217,11 +208,11 @@ namespace TOHYK
             switch (axis)
             {
                 case AxisConstraint.AxisX:
-                    return new Color(1f, 0.2f, 0.2f, 0.9f);
+                    return new Color(1f, 0.2f, 0.322f, 0.9f);
                 case AxisConstraint.AxisY:
-                    return new Color(0.2f, 1f, 0.2f, 0.9f);
+                    return new Color(0.545f, 0.863f, 0f, 0.9f);
                 case AxisConstraint.AxisZ:
-                    return new Color(0.3f, 0.3f, 1f, 0.9f);
+                    return new Color(0.157f, 0.565f, 1f, 0.9f);
                 default:
                     return Color.white;
             }
