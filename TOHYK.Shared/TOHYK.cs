@@ -23,7 +23,8 @@ namespace TOHYK
     {
         public const string Guid = "org.fox.TOHYK";
         public const string PluginName = "TOHYK";
-        public const string Version = "1.2.2";
+        public const string Version = "1.3.0";
+        // ReSharper restore MemberCanBePrivate.Global
 
         private InputHandler _inputHandler;
         private Transformer transformer;
@@ -1781,6 +1782,14 @@ namespace TOHYK
 
         private void UpdateRotateConstrained()
         {
+            var cam = GetCamera();
+            Vector3 pivotScreen = cam.WorldToScreenPoint(_pivotWorld);
+            var virtualMousePosition = MouseWrapService.VirtualMousePosition;
+            Vector2 currentMouse = virtualMousePosition;
+            
+            float currentAngleRad = Mathf.Atan2(virtualMousePosition.y - pivotScreen.y, virtualMousePosition.x - pivotScreen.x);
+            float deltaAngleRad = currentAngleRad - Mathf.Atan2(_startMouseScreen.y - pivotScreen.y, _startMouseScreen.x - pivotScreen.x);
+            float deltaAngle = deltaAngleRad * Mathf.Rad2Deg;
             Vector3 axis = _rotationAxis != Vector3.zero ? _rotationAxis : GetConstraintAxisDir();
             if (_constraint == AxisConstraint.PlaneXY || _constraint == AxisConstraint.PlaneXZ ||
                 _constraint == AxisConstraint.PlaneYZ)
