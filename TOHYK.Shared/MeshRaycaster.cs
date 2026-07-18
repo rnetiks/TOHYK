@@ -43,7 +43,7 @@ namespace TOHYK
         public bool Raycast(
             Ray ray,
             float maxDist,
-            IDictionary<int, GuideObject> targets,
+            IDictionary<int, ITransformTarget> targets,
             out Vector3 hitPoint,
             out Vector3 hitNormal)
         {
@@ -136,7 +136,7 @@ namespace TOHYK
             return found;
         }
 
-        public void BuildCache(IDictionary<int, GuideObject> targets)
+        public void BuildCache(IDictionary<int, ITransformTarget> targets)
         {
             _cachedMeshFilters = Object.FindObjectsOfType<MeshFilter>();
             _cachedSkinnedRenderers = Object.FindObjectsOfType<SkinnedMeshRenderer>();
@@ -144,7 +144,7 @@ namespace TOHYK
             _hasCache = true;
         }
 
-        private void BuildTargetCollidersCache(IDictionary<int, GuideObject> targets)
+        private void BuildTargetCollidersCache(IDictionary<int, ITransformTarget> targets)
         {
             _tempColliders.Clear();
             foreach (var go in targets.Values)
@@ -167,7 +167,7 @@ namespace TOHYK
             _hasCache = false;
         }
 
-        public void BuildExcludeSet(IDictionary<int, GuideObject> targets)
+        public void BuildExcludeSet(IDictionary<int, ITransformTarget> targets)
         {
             _excluded.Clear();
 
